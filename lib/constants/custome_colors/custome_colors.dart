@@ -4,9 +4,14 @@ class CustomColors {
   // Solid Colors
   static const Color white = Colors.white;
   static const Color black = Colors.black;
-  static const Color royalBlue = Color(0xFF4169E1); // Royal Blue
-  static const Color navyBlue = Color(0xFF000080); // Navy Blue
+  static const Color blue = Color(0xFF334972); // Royal Blue
+  static const Color navyBlue = Color(0xFF45629A); // Royal Blue
   static const Color customeBlue = Color(0xFF010159); // Navy Blue
+
+  static const Color yellow = Color(0xFFfdd68d);
+  static const Color MidYellow = Color(0xFFa38f67);
+  static const Color DarkYellow = Color(0xFFa38f67);
+
 
   static const LinearGradient golden = LinearGradient(
     begin: Alignment.topLeft,

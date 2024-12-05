@@ -4,7 +4,17 @@
 <dict>
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
+	<key>NSCameraUsageDescription</key>
+    <string>We need access to your camera to scan QR codes.</string>
 	<key>CFBundleDisplayName</key>
+	<key>NSLocationWhenInUseUsageDescription</key>
+    <string>This app needs access to your location to provide location updates.</string>
+    <key>UIBackgroundModes</key>
+    <array>
+        <string>location</string>
+    </array>
+    <key>NSLocationAlwaysUsageDescription</key>
+    <string>This app needs access to your location in the background.</string>
 	<string>Delivary</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
@@ -13,7 +23,7 @@
 	<key>CFBundleInfoDictionaryVersion</key>
 	<string>6.0</string>
 	<key>CFBundleName</key>
-	<string>delivary</string>
+	<string>Rasd Almodon</string>
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>

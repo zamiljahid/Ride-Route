@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "756173239511",
+    "project_id": "erp-push-notifications-501fc",
+    "storage_bucket": "erp-push-notifications-501fc.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:756173239511:android:2d38b82a9f0083b56e6c92",
+        "android_client_info": {
+          "package_name": "com.example.delivary"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCiRuKkPrVa6zk5xbgTfCfBe9WZ0khUga8"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
