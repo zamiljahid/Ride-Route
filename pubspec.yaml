@@ -55,9 +55,7 @@ dependencies:
   flutter_local_notifications: ^18.0.1
   firebase_analytics: ^11.3.5
   flutter_launcher_icons: ^0.14.1
-  background_locator: ^1.6.12
-  workmanager: ^0.5.2
-  location: ^7.0.1
+
 
 
 flutter_launcher_icons:

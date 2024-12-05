@@ -81,7 +81,7 @@ class _LoginScreenState extends State<LoginScreen>
                     Padding(
                       padding: EdgeInsets.only(top: 30.0),
                       child: Text(
-                        "Rider Route",
+                        "Rasd Almodon",
                         style: TextStyle(
                             fontSize: 32,
                             fontFamily: 'Rowdies',
