@@ -22,7 +22,6 @@ class _GraphScreenState extends State<GraphScreen> {
     super.initState();
     loadUserData();
   }
-
   Future<void> loadUserData() async {
     final String? token = SharedPrefs.getString('token');
     if (token != null) {
@@ -66,6 +65,8 @@ class _GraphScreenState extends State<GraphScreen> {
       ),
       body: isLoading  // Show loading indicator while data is loading
           ? Center(child: CircularProgressIndicator())
+          : (pos == null || cash == null || delivered == null || returned == null)  // Check if any data is null
+          ? Center(child: Text('No data to display', style: TextStyle(fontSize: 16, color: Colors.black)))
           : Column(
         children: [
           Expanded(

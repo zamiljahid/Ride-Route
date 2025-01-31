@@ -1,9 +1,7 @@
 import 'package:delivary/api/api_client.dart';
 import 'package:delivary/constants/custome_colors/custome_colors.dart';
 import 'package:flutter/material.dart';
-import 'package:permission_handler/permission_handler.dart';
 import 'package:url_launcher/url_launcher.dart';
-
 import '../../shared_preference.dart';
 import 'model/store_location_model.dart';
 
@@ -44,10 +42,7 @@ class _MapScreenState extends State<MapScreen> {
   Future<void> _openGoogleMaps(double latitude, double longitude) async {
     final Uri googleMapsUrl = Uri.parse(
         'https://www.google.com/maps/search/?api=1&query=$latitude,$longitude');
-
     print('Google Maps URL: $googleMapsUrl');
-
-    // Try to open Google Maps using the URL
     try {
       if (await canLaunchUrl(googleMapsUrl)) {
         await launchUrl(googleMapsUrl, mode: LaunchMode.platformDefault);

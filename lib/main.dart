@@ -1,8 +1,8 @@
 import 'package:firebase_analytics/firebase_analytics.dart';
-import 'package:firebase_analytics/firebase_analytics.dart';
 import 'package:delivary/screens/dashboard/home_screen.dart';
 import 'package:delivary/screens/splash%20screen/splash_screen.dart';
 import 'package:delivary/shared_preference.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_core/firebase_core.dart';
@@ -31,10 +31,10 @@ Future<void> main() async {
   await requestLocationPermission();
   await SharedPrefs.init();
 
-  // Initialize Firebase Analytics
-  FirebaseAnalytics analytics = FirebaseAnalytics.instance;
-  await analytics.logAppOpen();  // Log app open event
+  FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
 
+  FirebaseAnalytics analytics = FirebaseAnalytics.instance;
+  await analytics.logAppOpen();
   runApp(const ProviderScope(child: MainClass()));
 }
 
@@ -48,8 +48,6 @@ class MainClass extends StatefulWidget {
 class MainClassState extends State<MainClass> {
   FCMService fcmService = FCMService();
   LocationService locationService = LocationService();
-
-  // Firebase Analytics instance
   FirebaseAnalytics analytics = FirebaseAnalytics.instance;
 
   @override
@@ -57,6 +55,10 @@ class MainClassState extends State<MainClass> {
     super.initState();
     final driverId = SharedPrefs.getString('driver_id') ?? '0';
     final token = SharedPrefs.getString('token') ?? '0';
+
+    FirebaseMessaging.instance.getToken().then((fcmToken) {
+      print('FCM Token: $fcmToken');
+    });
 
     analytics.logEvent(
       name: 'app_initialized',
@@ -71,11 +73,12 @@ class MainClassState extends State<MainClass> {
     LocationService().startLocationUpdates(driverId, token);
   }
 
+
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      navigatorKey: FCMService.navigatorKey,
       debugShowCheckedModeBanner: false,
-      navigatorKey: FCMService.navigatorKey, // Set the navigator key for navigation
       home: const SplashScreen(), // Set your initial screen
       routes: {
         '/home': (context) => HomeScreen(), // Define routes

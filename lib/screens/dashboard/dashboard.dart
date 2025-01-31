@@ -1,17 +1,12 @@
-
 import 'package:curved_navigation_bar/curved_navigation_bar.dart';
-import 'package:delivary/api/api_client.dart';
 import 'package:delivary/constants/custome_colors/custome_colors.dart';
 import 'package:delivary/screens/dashboard/model/profile_model.dart';
 import 'package:delivary/screens/dashboard/profile_screen.dart';
 import 'package:delivary/screens/dashboard/map_screen.dart';
 import 'package:flutter/material.dart';
-
-import '../../shared_preference.dart';
 import 'qr_scan.dart';
 import 'graph_screen.dart';
 import 'home_screen.dart';
-
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});

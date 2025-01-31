@@ -7,7 +7,7 @@ class ErrorDialog {
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
-          backgroundColor: CustomColors.navyBlue.withOpacity(.5),
+          backgroundColor: CustomColors.navyBlue.withOpacity(.9),
           title: Text('Error $statusCode !!!', style: TextStyle(color: CustomColors.white, fontWeight: FontWeight.bold, fontSize: 20),),
           content: Text(message, style: TextStyle(color: CustomColors.white, fontSize: 18),),
           actions: [

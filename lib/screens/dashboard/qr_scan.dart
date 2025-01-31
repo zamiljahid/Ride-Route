@@ -92,7 +92,6 @@ class _QRScreenState extends State<QRScreen>
     try {
       print("Scanned QR Code: $qrCode");
 
-      // Parse QR code as JSON data
       Map<String, dynamic> jsonData = jsonDecode(qrCode);
       setState(() {
         storeData = Store.fromJson(jsonData);

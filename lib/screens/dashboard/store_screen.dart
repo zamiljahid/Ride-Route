@@ -1,20 +1,19 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 import 'dart:math';
 import 'dart:ui';
 import 'package:barcode_scan2/platform_wrapper.dart';
-import 'package:delivary/screens/dashboard/model/product_model.dart';
-import 'package:flutter/scheduler.dart';
+import 'package:flutter_downloader/flutter_downloader.dart';
+import 'package:flutter_file_downloader/flutter_file_downloader.dart';
+import 'package:flutter_pdfview/flutter_pdfview.dart';
 import 'package:http/http.dart' as http;
-import 'package:permission_handler/permission_handler.dart';
-import 'package:qr_code_scanner/qr_code_scanner.dart'; // Include this package in your pubspec.yaml
 import 'package:delivary/constants/custome_colors/custome_colors.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_speed_dial/flutter_speed_dial.dart';
-import 'package:lottie/lottie.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-
+import 'package:open_file/open_file.dart';
+import 'package:path_provider/path_provider.dart';
 import '../../api/api_client.dart';
 import '../../error handler/error_handler.dart';
 import '../../shared_preference.dart';
@@ -31,7 +30,7 @@ class StoreScreen extends StatefulWidget {
 
 class _StoreScreenState extends State<StoreScreen>
     with SingleTickerProviderStateMixin {
-  String? qrCode, selectedCodeType;
+  String? qrCode, selectedCodeType,selectedMethodType;
   bool isQR = false;
   bool isMenuOpen = false;
   late AnimationController _controller;
@@ -39,7 +38,8 @@ class _StoreScreenState extends State<StoreScreen>
   TextEditingController productCodeController = TextEditingController();
   late Animation<double> _animation;
   Store? storeData;
-
+  bool isLoading = false;
+  bool isDownloading = false;
 
   @override
   void initState() {
@@ -55,7 +55,6 @@ class _StoreScreenState extends State<StoreScreen>
     );
   }
 
-
   void toggleMenu() {
     setState(() {
       isMenuOpen = !isMenuOpen;
@@ -67,15 +66,90 @@ class _StoreScreenState extends State<StoreScreen>
 
   bool isScanning = false;
 
-// Function to open the barcode scanner
   Future<void> _scanBarcode() async {
-    var result = await BarcodeScanner.scan(); // Start scanning
+    var result = await BarcodeScanner.scan();
     if (result.rawContent.isNotEmpty) {
       setState(() {
-        productCodeController.text = result.rawContent; // Set the scanned barcode to the input field
-        selectedProducts.add(result.rawContent); // Add scanned product to the list
+        selectedProducts
+            .add(result.rawContent);
       });
     }
+  }
+  // void downloadAndOpenPdf(BuildContext context, String pdfUrl) async {
+  //   try {
+  //     Directory appDocDir = await getApplicationDocumentsDirectory();
+  //     String fileName = pdfUrl.split('/').last;
+  //     String filePath = '${appDocDir.path}/$fileName';
+  //
+  //     FileDownloader.downloadFile(
+  //       url: pdfUrl,
+  //       name: fileName,
+  //       onDownloadCompleted: (String path) {
+  //         print("Downloaded Path: $path");
+  //         ScaffoldMessenger.of(context).showSnackBar(
+  //           SnackBar(
+  //             content: Text("Download completed! Opening PDF..."),
+  //             duration: Duration(seconds: 2),
+  //             behavior: SnackBarBehavior.floating,
+  //           ),
+  //         );
+  //
+  //         showPdfDialog(context, filePath);
+  //       },
+  //       onDownloadError: (String error) {
+  //         print('Download error: $error');
+  //
+  //         // Show Snackbar on Download Error
+  //         ScaffoldMessenger.of(context).showSnackBar(
+  //           SnackBar(
+  //             content: Text("Download failed: $error"),
+  //             backgroundColor: Colors.red,
+  //             duration: Duration(seconds: 3),
+  //             behavior: SnackBarBehavior.floating,
+  //           ),
+  //         );
+  //       },
+  //     );
+  //   } catch (e) {
+  //     print("Error downloading file: $e");
+  //   }
+  // }
+
+  void showPdfDialog(BuildContext context, String filePath) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text("Invoice PDF"),
+          content: Container(
+            height: 400,
+            child: PDFView(
+              filePath: filePath,
+              enableSwipe: true,
+              swipeHorizontal: false,
+              autoSpacing: true,
+              pageSnap: true,
+              fitPolicy: FitPolicy.BOTH,
+              onError: (error) {
+                print("PDF Error: $error");
+              },
+              onRender: (_pages) {
+                print("PDF Rendered: $_pages pages");
+              },
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+              child: Text("Close"),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   @override
@@ -243,6 +317,7 @@ class _StoreScreenState extends State<StoreScreen>
                                                 color: CustomColors.black),
                                             onTap: () {
                                               setState(() {
+                                                selectedProducts.clear();
                                                 selectedAction = "Inventory";
                                               });
                                             },
@@ -260,6 +335,7 @@ class _StoreScreenState extends State<StoreScreen>
                                                 color: CustomColors.black),
                                             onTap: () {
                                               setState(() {
+                                                selectedProducts.clear();
                                                 selectedAction = "Return";
                                               });
                                             },
@@ -277,6 +353,7 @@ class _StoreScreenState extends State<StoreScreen>
                                                 color: CustomColors.black),
                                             onTap: () {
                                               setState(() {
+                                                selectedProducts.clear();
                                                 selectedAction = "Drop off";
                                               });
                                             },
@@ -301,294 +378,557 @@ class _StoreScreenState extends State<StoreScreen>
                         ),
                       ),
                     ),
-          SingleChildScrollView(
-            child: Column(
-              children: [
-                const SizedBox(height: 20),
-                Text(
-                  selectedAction ?? "No Action Selected",
-                  style: TextStyle(
-                    fontFamily: 'Rowdies',
-                    color: CustomColors.customeBlue,
-                    fontSize: 30,
-                  ),
-                ),
-                Visibility(
-                  visible: selectedAction != null,
-                  child: Column(
-                    children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
+                    SingleChildScrollView(
+                      child: Column(
                         children: [
-                          Radio<String>(
-                            activeColor: CustomColors.customeBlue,
-                            value: "Box Code",
-                            groupValue: selectedCodeType,
-                            onChanged: (value) {
-                              setState(() {
-                                selectedCodeType = value!;
-                              });
-                            },
-                          ),
-                          const Text("Box Code"),
-                          const SizedBox(width: 20),
-                          Radio<String>(
-                            activeColor: CustomColors.customeBlue,
-                            value: "Product Code",
-                            groupValue: selectedCodeType,
-                            onChanged: (value) {
-                              setState(() {
-                                selectedCodeType = value!;
-                              });
-                            },
-                          ),
-                          const Text("Product Code"),
-                        ],
-                      ),
-                      // Add Code Section
-                      if (selectedCodeType != null)
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            const SizedBox(width: 10),
-                            Container(
-                              width: 40,
-                              height: 40,
-                              decoration: BoxDecoration(
-                                color: CustomColors.blue,
-                                shape: BoxShape.circle,
-                              ),
-                              child: IconButton(
-                                icon: const Icon(Icons.camera_alt, color: Colors.white),
-                                onPressed: _scanBarcode, // Trigger the barcode scan when pressed
-                              ),
+                          const SizedBox(height: 20),
+                          Text(
+                            selectedAction ?? "No Action Selected",
+                            style: TextStyle(
+                              fontFamily: 'Rowdies',
+                              color: CustomColors.customeBlue,
+                              fontSize: 30,
                             ),
-                            const SizedBox(width: 10),
-                            Expanded(
-                              child: TextFormField(
-                                controller: productCodeController,
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontFamily: 'Rowdies',
-                                ),
-                                cursorColor: Colors.white,
-                                decoration: InputDecoration(
-                                  hintText: 'Enter $selectedCodeType',
-                                  hintStyle: const TextStyle(
-                                    color: Colors.grey,
-                                    fontFamily: 'Rowdies',
-                                  ),
-                                  filled: true,
-                                  fillColor: CustomColors.blue,
-                                  enabledBorder: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(10.0),
-                                    borderSide: const BorderSide(color: Colors.white),
-                                  ),
-                                  focusedBorder: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(10.0),
-                                    borderSide: const BorderSide(color: Colors.white),
-                                  ),
-                                  suffixIcon: IconButton(
-                                    icon: const Icon(Icons.check, color: Colors.white),
-                                    onPressed: () async {
-                                      String productCode = productCodeController.text.trim();
-                                      if (productCode.isNotEmpty) {
+                          ),
+                          Visibility(
+                            visible: selectedAction != null,
+                            child: Column(
+                              children: [
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Radio<String>(
+                                      activeColor: CustomColors.customeBlue,
+                                      value: "Box Code",
+                                      groupValue: selectedCodeType,
+                                      onChanged: (value) {
                                         setState(() {
-                                          selectedProducts.add(productCode); // Add product to list
-                                        });
-                                        productCodeController.clear(); // Clear input field
-                                      } else {
-                                        print('No product code entered');
-                                      }
-                                    },
-                                  ),
-                                ),
-                              ),
-                            ),
-                            const SizedBox(width: 10),
-                          ],
-                        ),
-                      const SizedBox(height: 20),
-                      // Product list display
-                      SingleChildScrollView(
-                        scrollDirection: Axis.vertical,
-                        child: Column(
-                          children: selectedProducts.map((product) {
-                            return Card(
-                              margin: const EdgeInsets.all(8.0),
-                              color: CustomColors.blue,
-                              child: Stack(
-                                children: [
-                                  Padding(
-                                    padding: const EdgeInsets.all(20.0),
-                                    child: Text(
-                                      product,
-                                      style: const TextStyle(
-                                        color: Colors.white,
-                                        fontSize: 14,
-                                      ),
-                                    ),
-                                  ),
-                                  Positioned(
-                                    top: -14,
-                                    right: -14,
-                                    child: IconButton(
-                                      padding: EdgeInsets.zero,
-                                      icon: const Icon(Icons.close, color: Colors.white, size: 16),
-                                      onPressed: () {
-                                        setState(() {
-                                          selectedProducts.remove(product); // Remove product from list
+                                          selectedProducts.clear();
+                                          selectedCodeType = value!;
                                         });
                                       },
                                     ),
-                                  ),
-                                ],
-                              ),
-                            );
-                          }).toList(),
-                        ),
-                      ),
-                      const SizedBox(height: 10),
-                      // Submit button section
-                      if (selectedProducts.isNotEmpty)
-                        ElevatedButton(
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: CustomColors.customeBlue,
-                          ),
-                          onPressed: () async {
-                            try {
-                              final token = SharedPrefs.getString('token');
-                              print(token.toString());
-                              if (token == null) {
-                                ErrorDialog.showErrorDialog(context, 401, 'Authentication token is missing. Please log in again.');
-                                return;
-                              }
-                              final itemType = selectedCodeType == "Box Code" ? "box" : "product";
-                              String? actionUrl;
-                              if (selectedAction == "Drop off") {
-                                actionUrl = "/api/create-dropoff/";
-                              } else if (selectedAction == "Return") {
-                                actionUrl = "/api/initiate-return/";
-                              } else if (selectedAction == "Inventory") {
-                                actionUrl = "/api/take-inventory/";
-                              } else {
-                                ErrorDialog.showErrorDialog(context, 400, 'Invalid action selected.');
-                                return;
-                              }
-                              final payload = {
-                                "driver_id": SharedPrefs.getString('driver_id'),
-                                "store_id": '6',
-                                "items": selectedProducts.join(","),
-                                "item_type": itemType,
-                              };
-                              final response = await ApiClient().postActions(payload, token, actionUrl, context);
-                              if (response != null) {
-                                print("Action completed successfully: ${response.toString()}");
-                                showDialog(
-                                  context: context,
-                                  builder: (BuildContext context) {
-                                    final parsedResponse = response is String ? jsonDecode(response) : response;
-
-                                    final successfullyAdded = parsedResponse['successfully_added'] as List;
-                                    final errors = parsedResponse['errors'] as List;
-                                    final totalProductsAdded = parsedResponse['total_products_added'];
-                                    final totalErrors = parsedResponse['total_errors'];
-
-                                    return AlertDialog(
-                                      backgroundColor: CustomColors.navyBlue.withOpacity(.7),
-                                      title: const Text(
-                                        'Action Completed',
-                                        style: TextStyle(
-                                          color: CustomColors.white,
-                                          fontWeight: FontWeight.bold,
-                                          fontSize: 20,
+                                    const Text("Box Code"),
+                                    const SizedBox(width: 20),
+                                    Radio<String>(
+                                      activeColor: CustomColors.customeBlue,
+                                      value: "Product Code",
+                                      groupValue: selectedCodeType,
+                                      onChanged: (value) {
+                                        setState(() {
+                                          selectedProducts.clear();
+                                          selectedCodeType = value!;
+                                        });
+                                      },
+                                    ),
+                                    const Text("Product Code"),
+                                  ],
+                                ),
+                                if (selectedAction == "Drop off" && selectedCodeType != null)
+                                  Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Radio<String>(
+                                      activeColor: CustomColors.customeBlue,
+                                      value: "CASH",
+                                      groupValue: selectedMethodType,
+                                      onChanged: (value) {
+                                        setState(() {
+                                          selectedProducts.clear();
+                                          selectedMethodType = value!;
+                                        });
+                                      },
+                                    ),
+                                    const Text("CASH"),
+                                    const SizedBox(width: 20),
+                                    Radio<String>(
+                                      activeColor: CustomColors.customeBlue,
+                                      value: "POS",
+                                      groupValue: selectedMethodType,
+                                      onChanged: (value) {
+                                        setState(() {
+                                          selectedProducts.clear();
+                                          selectedMethodType = value!;
+                                        });
+                                      },
+                                    ),
+                                    const Text("POS"),
+                                  ],
+                                ),
+                                if (selectedCodeType!= null)
+                                  Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      const SizedBox(width: 10),
+                                      Container(
+                                        width: 40,
+                                        height: 40,
+                                        decoration: BoxDecoration(
+                                          color: CustomColors.blue,
+                                          shape: BoxShape.circle,
+                                        ),
+                                        child: IconButton(
+                                          icon: const Icon(Icons.camera_alt,
+                                              color: Colors.white),
+                                          onPressed:
+                                              _scanBarcode, // Trigger the barcode scan when pressed
                                         ),
                                       ),
-                                      content: SingleChildScrollView(
-                                        child: Column(
-                                          crossAxisAlignment: CrossAxisAlignment.start,
-                                          children: [
-                                            if (successfullyAdded.isNotEmpty) ...[
-                                              const Text(
-                                                'Successfully Added:',
-                                                style: TextStyle(
-                                                  color: CustomColors.white,
-                                                  fontWeight: FontWeight.bold,
-                                                  fontSize: 18,
-                                                ),
-                                              ),
-                                              ...successfullyAdded.map(
-                                                    (item) => Text(
-                                                  '- $item',
-                                                  style: const TextStyle(color: CustomColors.white, fontSize: 16),
-                                                ),
-                                              ),
-                                              const SizedBox(height: 10),
-                                            ],
-                                            if (errors.isNotEmpty) ...[
-                                              const Text(
-                                                'Errors:',
-                                                style: TextStyle(
-                                                  color: CustomColors.white,
-                                                  fontWeight: FontWeight.bold,
-                                                  fontSize: 18,
-                                                ),
-                                              ),
-                                              ...errors.map(
-                                                    (error) => Text(
-                                                  '- ${error['item_code']}: ${error['error']}',
-                                                  style: const TextStyle(color: CustomColors.white, fontSize: 16),
-                                                ),
-                                              ),
-                                              const SizedBox(height: 10),
-                                            ],
-                                            const Divider(color: CustomColors.white),
-                                            Text(
-                                              'Total Products Added: $totalProductsAdded',
-                                              style: const TextStyle(color: CustomColors.white, fontSize: 18),
+                                      const SizedBox(width: 10),
+                                      Expanded(
+                                        child: TextFormField(
+                                          controller: productCodeController,
+                                          style: const TextStyle(
+                                            color: Colors.white,
+                                            fontFamily: 'Rowdies',
+                                          ),
+                                          cursorColor: Colors.white,
+                                          decoration: InputDecoration(
+                                            hintText: 'Enter $selectedCodeType',
+                                            hintStyle: const TextStyle(
+                                              color: Colors.grey,
+                                              fontFamily: 'Rowdies',
                                             ),
-                                            Text(
-                                              'Total Errors: $totalErrors',
-                                              style: const TextStyle(color: CustomColors.white, fontSize: 18),
+                                            filled: true,
+                                            fillColor: CustomColors.blue,
+                                            enabledBorder: OutlineInputBorder(
+                                              borderRadius:
+                                                  BorderRadius.circular(10.0),
+                                              borderSide: const BorderSide(
+                                                  color: Colors.white),
                                             ),
-                                          ],
-                                        ),
-                                      ),
-                                      actions: [
-                                        TextButton(
-                                          onPressed: () {
-                                            Navigator.of(context).pop();
-                                          },
-                                          child: const Text(
-                                            'OK',
-                                            style: TextStyle(
-                                              color: CustomColors.white,
-                                              fontSize: 18,
-                                              fontWeight: FontWeight.bold,
+                                            focusedBorder: OutlineInputBorder(
+                                              borderRadius:
+                                                  BorderRadius.circular(10.0),
+                                              borderSide: const BorderSide(
+                                                  color: Colors.white),
+                                            ),
+                                            suffixIcon: IconButton(
+                                              icon: const Icon(Icons.check,
+                                                  color: Colors.white),
+                                              onPressed: () async {
+                                                String productCode =
+                                                    productCodeController.text
+                                                        .trim();
+                                                if (productCode.isNotEmpty) {
+                                                  setState(() {
+                                                    selectedProducts.add(
+                                                        productCode); // Add product to list
+                                                  });
+                                                  productCodeController
+                                                      .clear(); // Clear input field
+                                                } else {
+                                                  print(
+                                                      'No product code entered');
+                                                }
+                                              },
                                             ),
                                           ),
                                         ),
-                                      ],
-                                    );
-                                  },
-                                );
-                              }
-                            } catch (e) {
-                              print('Error during action: $e');
-                              ErrorDialog.showErrorDialog(context, 500, 'An unexpected error occurred. Please try again.');
-                            }
-                          },
-                          child: const Text(
-                            'Submit',
-                            style: TextStyle(color: Colors.white),
+                                      ),
+                                      const SizedBox(width: 10),
+                                    ],
+                                  ),
+                                const SizedBox(height: 20),
+                                  SingleChildScrollView(
+                                  scrollDirection: Axis.vertical,
+                                  child: Column(
+                                    children: selectedProducts.map((product) {
+                                      return Card(
+                                        margin: const EdgeInsets.all(8.0),
+                                        color: CustomColors.blue,
+                                        child: Stack(
+                                          children: [
+                                            Padding(
+                                              padding:
+                                                  const EdgeInsets.all(20.0),
+                                              child: Text(
+                                                product,
+                                                style: const TextStyle(
+                                                  color: Colors.white,
+                                                  fontSize: 14,
+                                                ),
+                                              ),
+                                            ),
+                                            Positioned(
+                                              top: -14,
+                                              right: -14,
+                                              child: IconButton(
+                                                padding: EdgeInsets.zero,
+                                                icon: const Icon(Icons.close,
+                                                    color: Colors.white,
+                                                    size: 16),
+                                                onPressed: () {
+                                                  setState(() {
+                                                    selectedProducts.remove(
+                                                        product);
+                                                  });
+                                                },
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      );
+                                    }).toList(),
+                                  ),
+                                ),
+                                const SizedBox(height: 10),
+                                if (selectedProducts.isNotEmpty)
+                                  ElevatedButton(
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: CustomColors.customeBlue,
+                                    ),
+                                    onPressed: isLoading
+                                        ? null
+                                        : () async {
+                                            try {
+                                              setState(() {
+                                                isLoading =
+                                                    true;
+                                              });
+
+                                              final token =
+                                                  SharedPrefs.getString(
+                                                      'token');
+                                              print(token.toString());
+                                              if (token == null) {
+                                                ErrorDialog.showErrorDialog(
+                                                    context,
+                                                    401,
+                                                    'Authentication token is missing. Please log in again.');
+                                                return;
+                                              }
+                                              final itemType =
+                                                  selectedCodeType == "Box Code"
+                                                      ? "box"
+                                                      : "product";
+                                              String? actionUrl;
+                                              if (selectedAction ==
+                                                  "Drop off") {
+                                                actionUrl =
+                                                    "/api/create-dropoff/";
+                                              } else if (selectedAction ==
+                                                  "Return") {
+                                                actionUrl =
+                                                    "/api/initiate-return/";
+                                              } else if (selectedAction ==
+                                                  "Inventory") {
+                                                actionUrl =
+                                                    "/api/take-inventory/";
+                                              } else {
+                                                ErrorDialog.showErrorDialog(
+                                                    context,
+                                                    400,
+                                                    'Invalid action selected.');
+                                                return;
+                                              }
+                                              final payload = {
+                                                "driver_id": SharedPrefs.getString('driver_id'),
+                                                "store_id": widget.storeData?.id,
+                                                "items": selectedProducts,
+                                                "item_type": itemType,
+                                                if (selectedAction == "Drop off")
+                                                  "method_of_collection": selectedMethodType.toString(),
+                                              };
+                                              print(jsonEncode(payload)
+                                                  .toString());
+                                              final response = await ApiClient()
+                                                  .postActions(payload, token,
+                                                      actionUrl, context);
+                                              setState(() {
+                                                isLoading =
+                                                    false;
+                                              });
+                                              if (response != null) {
+                                                print("Action completed successfully: ${response.toString()}");
+                                                showDialog(
+                                                  barrierDismissible: false,
+                                                  context: context,
+                                                  builder: (BuildContext context) {
+                                                    final parsedResponse =
+                                                    response is String ? jsonDecode(response) : response;
+                                                    List successfullyMatched = [];
+                                                    List successfullyUpdated = [];
+                                                    List successfullyAdded = [];
+                                                    List missingProducts = [];
+                                                    List errors = [];
+                                                    int totalProductsMatched = 0;
+                                                    int totalProductsUpdated = 0;
+                                                    int totalProductsAdded = 0;
+                                                    int totalMissingProducts = 0;
+                                                    int totalErrors = 0;
+                                                    String actionTitle = 'Action Completed';
+                                                    if (parsedResponse.containsKey('successfully_matched')) {
+                                                      successfullyMatched = parsedResponse['successfully_matched'] ?? [];
+                                                      missingProducts = parsedResponse['missing_products_marked_as_sold'] ?? [];
+                                                      errors = parsedResponse['errors'] ?? [];
+                                                      totalProductsMatched = parsedResponse['total_products_matched'] ?? 0;
+                                                      totalMissingProducts = parsedResponse['total_missing_products'] ?? 0;
+                                                      totalErrors = parsedResponse['total_errors'] ?? 0;
+                                                      actionTitle = 'Take Inventory Action Completed';
+                                                    }
+                                                    else if (parsedResponse.containsKey('successfully_updated')) {
+                                                      successfullyUpdated = parsedResponse['successfully_updated'] ?? [];
+                                                      errors = parsedResponse['errors'] ?? [];
+                                                      totalProductsUpdated = parsedResponse['total_products_updated'] ?? 0;
+                                                      totalErrors = parsedResponse['total_errors'] ?? 0;
+                                                      actionTitle = 'Initiate Return Action Completed';
+                                                    }
+                                                    else if (parsedResponse.containsKey('successfully_added')) {
+                                                      successfullyAdded = parsedResponse['successfully_added'] ?? [];
+                                                      errors = parsedResponse['errors'] ?? [];
+                                                      totalProductsAdded = parsedResponse['total_products_added'] ?? 0;
+                                                      totalErrors = parsedResponse['total_errors'] ?? 0;
+                                                      actionTitle = 'Create Dropoff Action Completed';
+                                                    }
+                                                    return AlertDialog(
+
+                                                      backgroundColor: CustomColors.navyBlue.withOpacity(.7),
+                                                      title: Text(
+                                                        actionTitle,
+                                                        style: const TextStyle(
+                                                          color: CustomColors.white,
+                                                          fontWeight: FontWeight.bold,
+                                                          fontSize: 20,
+                                                        ),
+                                                      ),
+                                                      content: SingleChildScrollView(
+                                                        child: Column(
+                                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                                          children: [
+                                                            if (successfullyMatched.isNotEmpty) ...[
+                                                              const Text(
+                                                                'Successfully Matched:',
+                                                                style: TextStyle(
+                                                                  color: CustomColors.white,
+                                                                  fontWeight: FontWeight.bold,
+                                                                  fontSize: 18,
+                                                                ),
+                                                              ),
+                                                              ...successfullyMatched.map(
+                                                                    (item) => Text(
+                                                                  '- $item',
+                                                                  style: const TextStyle(color: CustomColors.white, fontSize: 16),
+                                                                ),
+                                                              ),
+                                                              const SizedBox(height: 10),
+                                                            ],
+                                                            if (successfullyUpdated.isNotEmpty) ...[
+                                                              const Text(
+                                                                'Successfully Updated:',
+                                                                style: TextStyle(
+                                                                  color: CustomColors.white,
+                                                                  fontWeight: FontWeight.bold,
+                                                                  fontSize: 18,
+                                                                ),
+                                                              ),
+                                                              ...successfullyUpdated.map(
+                                                                    (item) => Text(
+                                                                  '- $item',
+                                                                  style: const TextStyle(color: CustomColors.white, fontSize: 16),
+                                                                ),
+                                                              ),
+                                                              const SizedBox(height: 10),
+                                                            ],
+                                                            if (successfullyAdded.isNotEmpty) ...[
+                                                              const Text(
+                                                                'Successfully Added:',
+                                                                style: TextStyle(
+                                                                  color: CustomColors.white,
+                                                                  fontWeight: FontWeight.bold,
+                                                                  fontSize: 18,
+                                                                ),
+                                                              ),
+                                                              ...successfullyAdded.map(
+                                                                    (item) => Text(
+                                                                  '- $item',
+                                                                  style: const TextStyle(color: CustomColors.white, fontSize: 16),
+                                                                ),
+                                                              ),
+                                                              const SizedBox(height: 10),
+                                                            ],
+                                                            if (missingProducts.isNotEmpty) ...[
+                                                              const Text(
+                                                                'Missing Products Marked as Sold:',
+                                                                style: TextStyle(
+                                                                  color: CustomColors.white,
+                                                                  fontWeight: FontWeight.bold,
+                                                                  fontSize: 18,
+                                                                ),
+                                                              ),
+                                                              ...missingProducts.map(
+                                                                    (item) => Text(
+                                                                  '- $item',
+                                                                  style: const TextStyle(color: CustomColors.white, fontSize: 16),
+                                                                ),
+                                                              ),
+                                                              const SizedBox(height: 10),
+                                                            ],
+                                                            if (errors.isNotEmpty) ...[
+                                                              const Text(
+                                                                'Errors:',
+                                                                style: TextStyle(
+                                                                  color: CustomColors.white,
+                                                                  fontWeight: FontWeight.bold,
+                                                                  fontSize: 18,
+                                                                ),
+                                                              ),
+                                                              ...errors.map(
+                                                                    (error) => Text(
+                                                                  '- ${error['item_code'] ?? ''}: ${error['error'] ?? ''}',
+                                                                  style: const TextStyle(color: CustomColors.white, fontSize: 16),
+                                                                ),
+                                                              ),
+                                                              const SizedBox(height: 10),
+                                                            ],
+                                                            const Divider(color: CustomColors.white),
+                                                            if (totalProductsMatched > 0) ...[
+                                                              Text(
+                                                                'Total Products Matched: $totalProductsMatched',
+                                                                style: const TextStyle(color: CustomColors.white, fontSize: 18),
+                                                              ),
+                                                            ],
+                                                            if (totalMissingProducts > 0) ...[
+                                                              Text(
+                                                                'Total Missing Products: $totalMissingProducts',
+                                                                style: const TextStyle(color: CustomColors.white, fontSize: 18),
+                                                              ),
+                                                            ],
+                                                            if (totalProductsUpdated > 0) ...[
+                                                              Text(
+                                                                'Total Products Updated: $totalProductsUpdated',
+                                                                style: const TextStyle(color: CustomColors.white, fontSize: 18),
+                                                              ),
+                                                            ],
+                                                            if (totalProductsAdded > 0) ...[
+                                                              Text(
+                                                                'Total Products Added: $totalProductsAdded',
+                                                                style: const TextStyle(color: CustomColors.white, fontSize: 18),
+                                                              ),
+                                                            ],
+                                                            Text(
+                                                              'Total Errors: $totalErrors',
+                                                              style: const TextStyle(color: CustomColors.white, fontSize: 18),
+                                                            ),
+                                                            if (parsedResponse.containsKey('small_invoice') && parsedResponse['small_invoice'] != null) ...[
+                                                              const SizedBox(height: 10),
+                                                            Center(
+                                                              child: ElevatedButton(
+                                                                style: ElevatedButton.styleFrom(
+                                                                  backgroundColor: CustomColors.customeBlue,
+                                                                ),
+                                                                onPressed: isDownloading ? null : () async {
+                                                                  // String pdfUrl = "https://logicgate99.pythonanywhere.com/media/invoices/invoice_759cc2c9-fc4e-4dc7-9916-dcceafc5d976_48gSVs0.pdf";
+                                                                  String pdfUrl = "https://logicgate99.pythonanywhere.com${parsedResponse['small_invoice']}";
+                                                                  Directory appDocDir = await getApplicationDocumentsDirectory();
+                                                                  String fileName = pdfUrl.split('/').last;
+                                                                  String filePath = '${appDocDir.path}/$fileName';
+
+                                                                  setState(() {
+                                                                    isDownloading = true;
+                                                                  });
+
+                                                                  try {
+                                                                    FileDownloader.downloadFile(
+                                                                      url: pdfUrl,
+                                                                      name: fileName,
+                                                                      onDownloadCompleted: (String path) {
+                                                                        Navigator.pop(context);
+                                                                        ScaffoldMessenger.of(context).showSnackBar(
+                                                                          SnackBar(
+                                                                            content: Text("Invoice Downloaded in your Device"),
+                                                                            duration: Duration(seconds: 2),
+                                                                            behavior: SnackBarBehavior.floating,
+                                                                          ),
+                                                                        );
+                                                                        setState(() {
+                                                                          isDownloading = false;
+                                                                        });
+                                                                      },
+                                                                      onDownloadError: (String error) {
+                                                                        ScaffoldMessenger.of(context).showSnackBar(
+                                                                          SnackBar(
+                                                                            content: Text("Download failed: $error"),
+                                                                            backgroundColor: Colors.red,
+                                                                            duration: Duration(seconds: 3),
+                                                                            behavior: SnackBarBehavior.floating,
+                                                                          ),
+                                                                        );
+                                                                        setState(() {
+                                                                          isDownloading = false;
+                                                                        });
+                                                                      },
+                                                                    );
+                                                                  } catch (e) {
+                                                                    print("Error downloading file: $e");
+                                                                    setState(() {
+                                                                      isDownloading = false;
+                                                                    });
+                                                                  }
+                                                                },
+                                                                child: isDownloading
+                                                                    ? SizedBox(
+                                                                  width: 20, height: 20,
+                                                                  child: CircularProgressIndicator(
+                                                                    strokeWidth: 2,
+                                                                    color: Colors.white,
+                                                                  ),
+                                                                )
+                                                                    : Text('Download Invoice',style:
+                                                                TextStyle(color: Colors.white),),
+                                                              ),
+                                                            ),
+                                                           ],
+                                                            if (parsedResponse.containsKey('small_invoice') && parsedResponse['small_invoice'] == null) ...[
+                                                              const SizedBox(height: 10),
+                                                              Center(
+                                                                child: ElevatedButton(
+                                                                  style: ElevatedButton.styleFrom(
+                                                                    backgroundColor: CustomColors.customeBlue,
+                                                                  ),
+                                                                  onPressed:()  {
+                                                                    Navigator.pop(context);
+                                                                  },
+                                                                  child: Text('Done',style:
+                                                                  TextStyle(color: Colors.white),),
+                                                                ),
+                                                              ),
+                                                            ],
+                                                          ],
+                                                        ),
+                                                      ),
+                                                    );
+                                                  },
+                                                );
+                                              }
+                                            } catch (e) {
+                                              setState(() {
+                                                isLoading =
+                                                    false;
+                                              });
+                                              print('Error during action: $e');
+                                              ErrorDialog.showErrorDialog(
+                                                  context,
+                                                  500,
+                                                  'An unexpected error occurred. Please try again.');
+                                            }
+                                          },
+                                    child: isLoading
+                                        ? const CircularProgressIndicator(
+                                     color:  Colors.black
+                                    )
+                                        : const Text(
+                                            'Submit',
+                                            style:
+                                                TextStyle(color: Colors.white),
+                                          ),
+                                  )
+                              ],
+                            ),
                           ),
-                        ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
+                        ],
+                      ),
+                    ),
                   ],
                 ),
               ],
@@ -596,7 +936,6 @@ class _StoreScreenState extends State<StoreScreen>
           ),
         ));
   }
-
 
   @override
   void dispose() {

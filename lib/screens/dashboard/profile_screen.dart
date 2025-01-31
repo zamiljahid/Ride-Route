@@ -1,9 +1,6 @@
 import 'package:delivary/constants/custome_colors/custome_colors.dart';
 import 'package:delivary/screens/dashboard/model/profile_model.dart';
 import 'package:flutter/material.dart';
-import 'package:lottie/lottie.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-
 import '../../api/api_client.dart';
 import '../../shared_preference.dart';
 import '../splash screen/splash_screen.dart';
@@ -22,7 +19,7 @@ class ProfileScreen extends StatelessWidget {
         print("Error fetching user data: $e");
       }
     }
-    return null; // Return null if no user ID or token
+    return null;
   }
 
   @override
@@ -91,19 +88,15 @@ class ProfileScreen extends StatelessWidget {
         ],
       ),
       body: FutureBuilder<ProfileModel?>(
-        future: _fetchUserData(context), // Call the API to fetch the user data
+        future: _fetchUserData(context),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
-            // Show loading indicator while waiting for the data
             return Center(child: CircularProgressIndicator());
           } else if (snapshot.hasError) {
-            // Handle error state
             return Center(child: Text('Error: ${snapshot.error}'));
           } else if (!snapshot.hasData) {
-            // Handle case where no data is returned
             return Center(child: Text('No user data found.'));
           } else {
-            // Display the user data once it's fetched
             ProfileModel user = snapshot.data!;
             String? profilePic = user.profilePicture;
             String empName = '${user.firstName} ${user.lastName}'.trim();

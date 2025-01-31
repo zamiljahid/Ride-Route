@@ -8,16 +8,12 @@ import '../error handler/error_handler.dart';
 import '../screens/dashboard/model/pending_store_model.dart';
 import '../screens/dashboard/model/profile_model.dart';
 import '../screens/dashboard/model/user_model.dart';
-
-// const String baseUrl = 'https://thefoodpark.xyz/erp-backend';
-// const String baseUrl = 'http://127.0.0.1:8000';
-// const String baseUrl = 'http://10.0.2.2:8000';
-const String baseUrl = 'https://rasdalmodon.com/erp_backend';
+const String baseUrl = 'https://logicgate99.pythonanywhere.com';
 const String authTokenUrl = '/auth/token/login/';
 const String authUserUrl = '/auth/users/me/';
 const String cashFlowUrl = '/api/get-cashflow-data/';
 const String storeLocationUrl = '/api/stores/';
-const String pendingStoreUrl = '/api/pickups/';
+const String pendingStoreUrl = '/api/pickups';
 const String profileUrl = '/api/drivers';
 const String productUrl = '/api/products/';
 const String changePassUrl = '/auth/users/set_password/';
@@ -104,13 +100,13 @@ class ApiClient {
   async {
     try {
       var url = Uri.parse(baseUrl + profileUrl + api);
-      print(url.toString());
       var response = await http.get(
         url,
         headers: {
           'Authorization': 'Token $token',
         },
       );
+      print(url.toString());
       print(response.body.toString());
       if (response.statusCode >= 200 && response.statusCode < 300) {
         final jsonData = json.decode(response.body);
@@ -145,7 +141,6 @@ class ApiClient {
   }
   Future<CashFlowModel?> getCashFlow(String token) async {
     final url =Uri.parse(baseUrl + cashFlowUrl);
-    print(url.toString());
     final response = await http.get(
       url,
       headers: {
@@ -153,8 +148,9 @@ class ApiClient {
         'Content-Type': 'application/json',
       },
     );
+    print(url.toString());
+    print(response.body.toString());
     if (response.statusCode == 200) {
-      print(response.body);
       final data = jsonDecode(response.body);
       CashFlowModel user = CashFlowModel.fromJson(data);
       return user;
@@ -163,26 +159,6 @@ class ApiClient {
       return null;
     }
   }
-
-
-  // Future<UserModel?> getUser(String token) async {
-  //   final response = await http.get(
-  //     Uri.parse(baseUrl + authUserUrl),
-  //     headers: {
-  //       'Authorization': 'Token $token',
-  //       'Content-Type': 'application/json',
-  //     },
-  //   );
-  //   if (response.statusCode == 200) {
-  //     final data = jsonDecode(response.body);
-  //     UserModel user = UserModel.fromJson(data);
-  //     return user;
-  //   } else {
-  //     print('Error fetching data: ${response.statusCode}');
-  //     return null;
-  //   }
-  // }
-
 
   Future<List<StoreLocationModel>?> getStoreLocation(String token) async {
     final url =Uri.parse(baseUrl + storeLocationUrl);
@@ -194,8 +170,8 @@ class ApiClient {
       },
     );
     print(url.toString());
+    print(response.body.toString());
     if (response.statusCode == 200) {
-      print(response.body.toString());
       final List<dynamic> data = jsonDecode(response.body);
       List<StoreLocationModel> storeLocations = data
           .map((storeData) => StoreLocationModel.fromJson(storeData))
@@ -210,13 +186,14 @@ class ApiClient {
   async {
     try {
       var url = Uri.parse(baseUrl + pendingStoreUrl + driverId + status + date);
-      print(url.toString());
+
       final response = await http.get(url, headers: {
         'Authorization': 'Token $token',
         'Content-Type': 'application/json',
       });
+      print(url.toString());
+      print(response.body.toString());
       if (response.statusCode == 200) {
-        print(response.body.toString());
         List<dynamic> jsonData = jsonDecode(response.body);
         return jsonData
             .map((data) => PendingStoreModel.fromJson(data))
@@ -243,6 +220,8 @@ class ApiClient {
           'Authorization': 'Token $token',
         },
       );
+      print(url.toString());
+      print(response.body.toString());
       if (response.statusCode >= 200 && response.statusCode < 300) {
         return response.body;
       } else {
@@ -267,28 +246,32 @@ class ApiClient {
     }
   }
 
-  Future<dynamic> postActions(dynamic payload, String token, String actionUrl, BuildContext context)
-  async {
+  Future<dynamic> postActions(dynamic payload, String token, String actionUrl, BuildContext context) async {
     try {
       var url = Uri.parse(baseUrl + actionUrl);
       print(url.toString());
       print(payload.toString());
+
       var response = await http.post(
         url,
-        body: payload,
+        body: jsonEncode(payload),
         headers: {
           'Authorization': 'Token $token',
+          'Content-Type': 'application/json',
         },
       );
+
+      print(response.body.toString());
+
       if (response.statusCode >= 200 && response.statusCode < 300) {
         return response.body;
       } else {
-        String errorMessage = 'An error occurred. Please try again.';
+        var responseBody = jsonDecode(response.body);
+        String errorMessage = responseBody['error'];
         try {
           var responseBody = jsonDecode(response.body);
           if (responseBody.containsKey('non_field_errors')) {
-            errorMessage =
-                (responseBody['non_field_errors'] as List).join(', ');
+            errorMessage = (responseBody['non_field_errors'] as List).join(', ');
           }
         } catch (jsonError) {
           print('JSON parsing error: $jsonError');
@@ -303,4 +286,5 @@ class ApiClient {
       return null;
     }
   }
+
 }
