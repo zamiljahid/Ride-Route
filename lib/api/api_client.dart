@@ -8,7 +8,8 @@ import '../error handler/error_handler.dart';
 import '../screens/dashboard/model/pending_store_model.dart';
 import '../screens/dashboard/model/profile_model.dart';
 import '../screens/dashboard/model/user_model.dart';
-const String baseUrl = 'https://logicgate99.pythonanywhere.com';
+// const String baseUrl = 'https://logicgate99.pythonanywhere.com';
+const String baseUrl = 'https://rasdalmodon-backend.onrender.com';
 const String authTokenUrl = '/auth/token/login/';
 const String authUserUrl = '/auth/users/me/';
 const String cashFlowUrl = '/api/get-cashflow-data/';
@@ -17,6 +18,7 @@ const String pendingStoreUrl = '/api/pickups';
 const String profileUrl = '/api/drivers';
 const String productUrl = '/api/products/';
 const String changePassUrl = '/auth/users/set_password/';
+const String checkBillUrl = '/api/calculate-bill-and-pending-balance/';
 
 class ApiClient {
 
@@ -249,8 +251,6 @@ class ApiClient {
   Future<dynamic> postActions(dynamic payload, String token, String actionUrl, BuildContext context) async {
     try {
       var url = Uri.parse(baseUrl + actionUrl);
-      print(url.toString());
-      print(payload.toString());
 
       var response = await http.post(
         url,
@@ -268,6 +268,51 @@ class ApiClient {
       } else {
         var responseBody = jsonDecode(response.body);
         String errorMessage = responseBody['error'];
+        try {
+          var responseBody = jsonDecode(response.body);
+          if (responseBody.containsKey('non_field_errors')) {
+            errorMessage = (responseBody['non_field_errors'] as List).join(', ');
+          }
+        } catch (jsonError) {
+          print('JSON parsing error: $jsonError');
+        }
+        ErrorDialog.showErrorDialog(context, response.statusCode, errorMessage);
+        return null;
+      }
+    } catch (e) {
+      print('Unexpected error in post action: $e');
+      ErrorDialog.showErrorDialog(
+          context, 500, 'Unexpected error occurred. Please try again later.');
+      return null;
+    }
+  }
+
+  Future<dynamic> postCheckBill(dynamic payload, String token, BuildContext context) async {
+    try {
+      var url = Uri.parse(baseUrl + checkBillUrl);
+      print(url.toString());
+
+      var response = await http.post(
+        url,
+        body: jsonEncode(payload),
+        headers: {
+          'Authorization': 'Token $token',
+          'Content-Type': 'application/json',
+        },
+      );
+
+      print(response.body.toString());
+
+      if (response.statusCode >= 200 && response.statusCode < 300) {
+        return response.body;
+      } else {
+        var responseBody = jsonDecode(response.body);
+        final errorsList = responseBody['errors'] as List<dynamic>;
+        String errorMessage = errorsList.map((e) {
+          final serial = e['serial_number'];
+          final error = e['error'];
+          return "Serial: $serial\nError: $error";
+        }).join("\n\n");
         try {
           var responseBody = jsonDecode(response.body);
           if (responseBody.containsKey('non_field_errors')) {

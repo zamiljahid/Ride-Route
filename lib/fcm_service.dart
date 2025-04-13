@@ -49,7 +49,7 @@ class FCMService {
     if (token != null) {
       final response = await http.post(
         Uri.parse(
-            'https://logicgate99.pythonanywhere.com/api/driver/set-fcm-token/'),
+            'https://rasdalmodon-backend.onrender.com/api/driver/set-fcm-token/'),
         headers: {
           'Authorization': 'Bearer $authToken',
         },

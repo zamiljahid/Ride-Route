@@ -249,26 +249,17 @@ class _LoginScreenState extends State<LoginScreen>
                       try {
                         var response = await ApiClient().postWithoutToken(payload, context);
                         if (response != null) {
-                          // No need to call jsonDecode again
-                          var responseData = response;  // response is already a Map<String, dynamic>
-
+                          var responseData = response;
                           String? token = responseData["auth_token"];
                           var user = responseData["user"];
                           String? uId = user?["u_id"]?.toString();
                           String? driverId = user?["driver_id"]?.toString();
-
                           if (token != null) {
                             await SharedPrefs.setString('token', token);
                             await SharedPrefs.setString('id', uId ?? '');
                             await SharedPrefs.setString('driver_id', driverId ?? '');
-
-                            print(token.toString());
-                            print(uId.toString());
-                            print(driverId.toString());
-
                             fcmService.initialize(driverId.toString(), token);
                             LocationService().startLocationUpdates(driverId!, token);
-
                             Navigator.pushReplacement(
                               context,
                               MaterialPageRoute(builder: (context) => SplashScreen()),

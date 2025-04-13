@@ -26,7 +26,7 @@ class LocationService {
   }
   Future<void> sendLocationToBackend(Position position, String id, String authToken) async {
     final response = await http.post(
-      Uri.parse('https://logicgate99.pythonanywhere.com/api/driver/update-location/'),
+      Uri.parse('https://rasdalmodon-backend.onrender.com/api/driver/update-location/'),
       body: {
         'driver_id': id,
         'latitude': position.latitude.toString(), // Double to String conversion

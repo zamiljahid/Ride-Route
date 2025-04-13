@@ -1,3 +1,4 @@
+import 'package:delivary/screens/dashboard/store_screen.dart';
 import 'package:firebase_analytics/firebase_analytics.dart';
 import 'package:delivary/screens/dashboard/home_screen.dart';
 import 'package:delivary/screens/splash%20screen/splash_screen.dart';
@@ -79,9 +80,9 @@ class MainClassState extends State<MainClass> {
     return MaterialApp(
       navigatorKey: FCMService.navigatorKey,
       debugShowCheckedModeBanner: false,
-      home: const SplashScreen(), // Set your initial screen
+      home: const SplashScreen(),
       routes: {
-        '/home': (context) => HomeScreen(), // Define routes
+        '/home': (context) => HomeScreen(),
       },
     );
   }

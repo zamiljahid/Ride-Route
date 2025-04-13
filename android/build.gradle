@@ -1,14 +1,14 @@
-buildscript {
-    ext.kotlin_version = '1.9.0' // Add the desired Kotlin version here
-    repositories {
-        google()
-        mavenCentral()
-    }
-    dependencies {
-        classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version"
-        classpath 'com.android.tools.build:gradle:8.1.4' // Update the Gradle plugin version if needed
-    }
-}
+//buildscript {
+//    ext.kotlin_version = '1.9.0'
+//    repositories {
+//        google()
+//        mavenCentral()
+//    }
+//    dependencies {
+//        classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version"
+//        classpath 'com.android.tools.build:gradle:7.3.0'
+//    }
+//}
 
 
 allprojects {
@@ -22,8 +22,25 @@ rootProject.buildDir = "../build"
 subprojects {
     project.buildDir = "${rootProject.buildDir}/${project.name}"
 }
+//subprojects {
+//    project.evaluationDependsOn(':app')
+//}
+
 subprojects {
-    project.evaluationDependsOn(":app")
+    tasks.withType(org.jetbrains.kotlin.gradle.tasks.KotlinCompile) {
+        kotlinOptions.jvmTarget = "1.8"
+    }
+}
+subprojects {
+    afterEvaluate { project ->
+        if (project.hasProperty('android')) {
+            project.android {
+                if (namespace == null) {
+                    namespace project.group
+                }
+            }
+        }
+    }
 }
 
 tasks.register("clean", Delete) {
